@@ -51,11 +51,16 @@
 
 ```bash
 # 1. 安装依赖
-pip install -U langchain langchain-openai
+pip install -U langchain langchain-deepseek python-dotenv
+```
 
-# 2. 设置 API Key（任选一个你用得到的）
-export OPENAI_API_KEY="sk-..."
-export ANTHROPIC_API_KEY="sk-ant-..."
+在 `learning/` 目录下创建 `.env` 文件：
+
+```bash
+# learning/.env
+API_KEY=sk-xxxxx
+BASE_URL=https://api.deepseek.com
+MODEL=deepseek-v4-flash
 ```
 
 > **没有 API Key？** 可以用本地模型：安装 [Ollama](https://ollama.com)，然后 `ollama pull llama3`，模型参数写 `"ollama:llama3"`。但注意部分本地模型对 tool calling 支持较差。
@@ -63,7 +68,23 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 ### 实验 1：最小 Agent（必做）
 
 ```python
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# 加载 learning/.env 中的配置
+load_dotenv(Path(__file__).parent.parent / ".env")
+
 from langchain.agents import create_agent
+from langchain.chat_models import init_chat_model
+
+# 从 .env 读取配置
+model = init_chat_model(
+    model=os.environ["MODEL"],
+    model_provider="deepseek",
+    openai_api_key=os.environ["API_KEY"],
+    openai_api_base=os.environ["BASE_URL"],
+)
 
 # ① 定义工具 —— python 函数 + docstring
 def get_weather(city: str) -> str:
@@ -72,8 +93,8 @@ def get_weather(city: str) -> str:
 
 # ② 创建 Agent
 agent = create_agent(
-    model="openai:gpt-4o",                    # 大脑
-    tools=[get_weather],                      # 手脚
+    model=model,                               # 大脑
+    tools=[get_weather],                       # 手脚
     system_prompt="You are a helpful assistant",  # 性格
 )
 
@@ -122,7 +143,7 @@ def get_time(city: str) -> str:
     return f"Current time in {city}: {datetime.now().strftime('%H:%M:%S')}"
 
 agent = create_agent(
-    model="openai:gpt-4o",
+    model=model,
     tools=[get_weather, get_time],  # ← 两个工具
     system_prompt="You are a helpful assistant.",
 )
@@ -180,11 +201,11 @@ LLM 决定要不要调用它、传什么参数
 
 **Q: 运行报错 `module not found`？**
 ```bash
-pip install -U langchain langchain-openai
+pip install -U langchain langchain-deepseek python-dotenv
 ```
 
 **Q: API Key 错误？**
-确认环境变量已设：`echo $OPENAI_API_KEY`
+检查 `learning/.env` 文件是否存在，确认 `API_KEY`、`BASE_URL`、`MODEL` 三项都已填写。
 
 **Q: 本地模型（Ollama）对 tool calling 支持差怎么办？**
 先用 OpenAI 或 Anthropic 的云端模型学习概念，本地模型留到后面优化。

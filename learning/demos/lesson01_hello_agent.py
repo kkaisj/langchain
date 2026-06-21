@@ -17,28 +17,46 @@
 #
 # 安装依赖（在终端执行）：
 #
-#   pip install -U langchain langchain-openai
+#   pip install -U langchain langchain-deepseek python-dotenv
 #
 #   或者用 uv：
 #
-#   uv add langchain langchain-openai
+#   uv add langchain langchain-deepseek python-dotenv
 #
-# 设置 API Key（在终端执行，选你使用的提供商）：
+# 在 learning/ 目录下创建 .env 文件：
 #
-#   # OpenAI
-#   export OPENAI_API_KEY="your-api-key"
-#
-#   # Anthropic (Claude)
-#   export ANTHROPIC_API_KEY="your-api-key"
-#
-#   # 其他提供商参考：https://docs.langchain.com/oss/python/langchain/models
+#   API_KEY=sk-xxxxx
+#   BASE_URL=https://api.deepseek.com
+#   MODEL=deepseek-v4-flash
 
 
 # ============================================================================
 # Step 1: 最简 Agent（5 行代码）
 # ============================================================================
 
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# 自动加载 learning/ 目录下的 .env 文件
+load_dotenv(Path(__file__).parent.parent / ".env")
+
 from langchain.agents import create_agent
+from langchain.chat_models import init_chat_model
+
+# 从 .env 读取配置
+MODEL = os.environ["MODEL"]
+API_KEY = os.environ["API_KEY"]
+BASE_URL = os.environ["BASE_URL"]
+
+# 初始化模型（DeepSeek 兼容 OpenAI API）
+model = init_chat_model(
+    model=MODEL,
+    model_provider="deepseek",
+    openai_api_key=API_KEY,
+    openai_api_base=BASE_URL,
+)
 
 
 # 定义一个工具 —— 普通 Python 函数
@@ -50,7 +68,7 @@ def get_weather(city: str) -> str:
 
 # 创建 Agent：三要素 = model + tools + system_prompt
 agent = create_agent(
-    model="openai:gpt-4o",           # 模型（格式："provider:model_name"）
+    model=model,                     # 使用 .env 配置的模型
     tools=[get_weather],             # 工具列表
     system_prompt="You are a helpful assistant",  # 系统提示
 )
@@ -110,7 +128,7 @@ def get_time(city: str) -> str:
 
 
 agent_two_tools = create_agent(
-    model="openai:gpt-4o",
+    model=model,
     tools=[get_weather, get_time],
     system_prompt="You are a helpful assistant. Always use the tools when available.",
 )
@@ -126,19 +144,17 @@ print(result3["messages"][-1].content_blocks)
 
 
 # ============================================================================
-# Step 5: 改用 Anthropic Claude（如果你有 key）
+# Step 5: 换模型只需改 .env
 # ============================================================================
-
-# agent_claude = create_agent(
-#     model="anthropic:claude-sonnet-4-6",
-#     tools=[get_weather],
-#     system_prompt="You are a helpful assistant",
-# )
 #
-# result4 = agent_claude.invoke(
-#     {"messages": [{"role": "user", "content": "What's the weather in Tokyo?"}]}
-# )
-# print(result4["messages"][-1].content_blocks)
+# 如果想换 OpenAI，只需修改 learning/.env：
+#
+#   API_KEY=sk-xxxxx
+#   BASE_URL=https://api.openai.com/v1
+#   MODEL=gpt-4o
+#
+# 然后在代码中改 model_provider="openai" 即可。
+# 所有 Agent 逻辑代码不需要任何改动。
 
 
 # ============================================================================
